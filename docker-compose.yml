@@ -1,18 +1,18 @@
 services:
-  shuangyun-agent:
+  shuangyun-v2:
     build:
       context: .
       dockerfile: Dockerfile
-    image: shuangyun-agent-platform:local
-    container_name: shuangyun-agent
+    image: shuangyun-agent-v2:local
+    container_name: shuangyun-v2
     ports:
-      - "8000:8000"
+      - "8002:8000"
     env_file:
       - .env
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: "8000"
-      DATABASE_PATH: /app/data/shuangyun-agent.db
+      DATABASE_PATH: /app/data/shuangyun-v2.db
       TRACE_EXPORT_DIR: /app/data/traces
     volumes:
       - ./data:/app/data
