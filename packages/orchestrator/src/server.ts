@@ -328,7 +328,7 @@ export function startStatusServer(host: string, port: number, repositories: Repo
     return (req as IncomingMessage & { context?: { actor: Actor | null } }).context?.actor ?? null;
   }
   function isProtected(p: string): boolean {
-    return p === "/" || p === "/library" || p === "/workflows" || p === "/brands" || p.startsWith("/workflows/") || p.startsWith("/brands/") || p.startsWith("/library/");
+    return p === "/" || p === "/library" || p === "/quickrun" || p === "/workflows" || p === "/brands" || p.startsWith("/workflows/") || p.startsWith("/brands/") || p.startsWith("/library/");
   }
 
   const server = createServer(async (request, response) => {
@@ -383,6 +383,85 @@ export function startStatusServer(host: string, port: number, repositories: Repo
       sendHtml(response, renderBrandDetail({ clientId: client.clientId, name: client.name, industry: client.industry }, outputs));
       return;
     }
+    // ── 快速執行頁 ──
+    if (url.pathname === "/quickrun") {
+      const allSkills = repositories.skills.list();
+      const brains = allSkills.filter(s => s.kind === "sub_agent").map(s => `<option value="${esc(s.skillId)}">${esc(s.name)}</option>`).join("");
+      const handsList = allSkills.filter(s => s.kind !== "sub_agent").map(s => `<option value="${esc(s.skillId)}">${esc(s.name)}</option>`).join("");
+      const clients = repositories.clients.list().map(c => `<option value="${esc(c.clientId)}">${esc(c.name)}</option>`).join("");
+      const body = `
+      <div class="max-w-2xl mx-auto">
+        <div class="text-center mb-6">
+          <div class="text-4xl mb-2">⚡</div>
+          <h2 class="text-2xl font-bold text-primary">快速執行</h2>
+          <p class="text-xs text-muted mt-1">選腦 + 選手 + 任務 → 一鍵產出（適合一次性任務）</p>
+        </div>
+        <div class="surface-2 rounded-2xl p-6 space-y-4">
+          <div>
+            <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">品牌（可選）</label>
+            <select id="qr-client" class="input-field w-full rounded-lg px-3 py-2.5 text-sm"><option value="">不指定品牌</option>${clients}</select>
+          </div>
+          <div>
+            <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">🧠 腦（策略指導，可選）</label>
+            <select id="qr-brain" class="input-field w-full rounded-lg px-3 py-2.5 text-sm"><option value="">不使用腦</option>${brains}</select>
+            <p class="text-[10px] text-muted mt-1">腦會根據品牌知識給出策略指令，引導手的產出方向</p>
+          </div>
+          <div>
+            <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">✋ 手（執行 Skill）</label>
+            <select id="qr-hand" class="input-field w-full rounded-lg px-3 py-2.5 text-sm">${handsList}</select>
+          </div>
+          <div>
+            <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">任務描述</label>
+            <textarea id="qr-task" class="input-field w-full rounded-lg px-3 py-2.5 text-sm" rows="3" placeholder="例：幫御美佳寫一篇母親節 IG 貼文"></textarea>
+          </div>
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 text-xs text-secondary"><input type="checkbox" id="qr-check" class="rounded" /> 腦 check（產出後讓腦審核）</label>
+            <span class="text-[10px] text-muted" id="qr-cost">預估 ~$0.005</span>
+          </div>
+          <button id="qr-btn" class="btn-primary w-full py-3 rounded-lg text-sm font-bold" onclick="quickRun()">⚡ 執行</button>
+        </div>
+        <div id="qr-result" class="hidden mt-6">
+          <h3 class="text-sm font-bold text-primary uppercase tracking-wider mb-3">產出結果</h3>
+          <div id="qr-brain-output" class="hidden surface-1 rounded-xl p-4 mb-3">
+            <div class="text-xs font-bold text-sky-600 mb-2">🧠 腦指令</div>
+            <div id="qr-brain-text" class="text-xs text-secondary whitespace-pre-wrap"></div>
+          </div>
+          <div class="surface-2 rounded-xl p-4 mb-3">
+            <div class="text-xs font-bold text-emerald-600 mb-2">✋ 手產出</div>
+            <div id="qr-hand-text" class="text-xs text-secondary whitespace-pre-wrap leading-relaxed"></div>
+          </div>
+          <div id="qr-check-output" class="hidden surface-1 rounded-xl p-4">
+            <div class="text-xs font-bold text-amber-600 mb-2">🧠 腦審核</div>
+            <div id="qr-check-text" class="text-xs text-secondary whitespace-pre-wrap"></div>
+          </div>
+        </div>
+      </div>
+      <script>
+        document.getElementById("qr-brain").onchange=document.getElementById("qr-check").onchange=function(){
+          const hasBrain=!!document.getElementById("qr-brain").value;
+          const hasCheck=document.getElementById("qr-check").checked;
+          let calls=1;if(hasBrain)calls++;if(hasCheck)calls++;
+          document.getElementById("qr-cost").textContent="預估 ~$"+(calls*0.005).toFixed(3)+" ("+calls+" 次 AI)";
+        };
+        async function quickRun(){
+          const btn=document.getElementById("qr-btn");
+          btn.disabled=true;btn.textContent="執行中...";
+          const body={clientId:document.getElementById("qr-client").value,brainId:document.getElementById("qr-brain").value,handId:document.getElementById("qr-hand").value,task:document.getElementById("qr-task").value,enableCheck:document.getElementById("qr-check").checked};
+          try{
+            const res=await fetch("/api/quickrun",{method:"POST",headers:{"content-type":"application/json","x-confirm-cost":"true"},body:JSON.stringify(body)});
+            const d=await res.json();if(!res.ok)throw new Error(d?.error?.message||"執行失敗");
+            document.getElementById("qr-result").classList.remove("hidden");
+            if(d.brainOutput){document.getElementById("qr-brain-output").classList.remove("hidden");document.getElementById("qr-brain-text").textContent=d.brainOutput}
+            document.getElementById("qr-hand-text").textContent=d.handOutput||"（無產出）";
+            if(d.checkOutput){document.getElementById("qr-check-output").classList.remove("hidden");document.getElementById("qr-check-text").textContent=d.checkOutput}
+          }catch(e){alert(e.message)}
+          finally{btn.disabled=false;btn.textContent="⚡ 執行"}
+        }
+      </script>`;
+      sendHtml(response, renderPageShell({ title: "快速執行 · V2", active: "demo", subtitle: "快速執行", body }));
+      return;
+    }
+
     if (url.pathname === "/workflows") {
       sendHtml(response, renderWorkflowsPage(repositories.workflows.list().map(w => ({ workflowId: w.workflowId, name: w.name, nodeCount: w.nodes.length, version: w.version }))));
       return;
@@ -475,6 +554,70 @@ export function startStatusServer(host: string, port: number, repositories: Repo
       if (!wf) { sendErrorResponse(response, 404, "NOT_FOUND", "找不到工作流"); return; }
       try { const { executeWorkflow } = await import("./runtime/workflow-engine.js"); const result = await executeWorkflow(wf, repositories); sendJson(response, 200, { ok: true, ...result }); }
       catch (error) { sendErrorResponse(response, 500, "EXEC_FAILED", error instanceof Error ? error.message : "執行失敗"); }
+      return;
+    }
+
+    // Quick Run API
+    if (url.pathname === "/api/quickrun" && request.method === "POST") {
+      if (!requireOperator(request, response) || !requireCostConfirmation(request, response)) return;
+      try {
+        const body = (await readJsonBody(request)) as Record<string, unknown>;
+        const brainId = typeof body.brainId === "string" ? body.brainId : "";
+        const handId = typeof body.handId === "string" ? body.handId : "";
+        const task = typeof body.task === "string" ? body.task : "";
+        const clientId = typeof body.clientId === "string" ? body.clientId : "";
+        const enableCheck = body.enableCheck === true;
+
+        if (!handId || !task) { sendErrorResponse(response, 400, "MISSING", "需要選擇手 Skill 和填寫任務"); return; }
+
+        const hand = repositories.skills.findById(handId);
+        if (!hand) { sendErrorResponse(response, 404, "NOT_FOUND", "手 Skill 不存在"); return; }
+
+        const { callClaudeWithUsageCheap } = await import("./integrations/anthropic.js");
+        let brainOutput = "";
+        let handOutput = "";
+        let checkOutput = "";
+
+        // Step 1: 腦指令（可選）
+        if (brainId) {
+          const brain = repositories.skills.findById(brainId);
+          if (brain) {
+            const brainPrompt = brain.blocks[0]?.systemPrompt ?? "";
+            let clientContext = "";
+            if (clientId) {
+              const client = repositories.clients.getById(clientId);
+              if (client) clientContext = `\n品牌：${client.name}（${client.industry}）`;
+            }
+            const brainResult = await callClaudeWithUsageCheap({
+              system: brainPrompt + clientContext,
+              user: `任務：${task}\n\n請給出策略指令和方向建議，供執行手參考。簡潔扼要。`
+            });
+            brainOutput = brainResult.text;
+          }
+        }
+
+        // Step 2: 手執行
+        const handPrompt = hand.blocks[0]?.systemPrompt ?? `你是 ${hand.name}`;
+        const handUser = brainOutput
+          ? `【腦指令】\n${brainOutput}\n\n【任務】${task}\n\n請根據腦指令執行任務，產出完整內容。`
+          : `【任務】${task}\n\n請執行任務，產出完整內容。`;
+        const handResult = await callClaudeWithUsageCheap({ system: handPrompt, user: handUser });
+        handOutput = handResult.text;
+
+        // Step 3: 腦 check（可選）
+        if (enableCheck && brainId) {
+          const brain = repositories.skills.findById(brainId);
+          if (brain) {
+            const checkResult = await callClaudeWithUsageCheap({
+              system: "你是品質審核腦。檢查以下產出是否符合策略指令和品牌約束。給出：通過/需修改 + 具體修改建議。",
+              user: `【腦指令】\n${brainOutput}\n\n【手產出】\n${handOutput}\n\n請審核。`
+            });
+            checkOutput = checkResult.text;
+          }
+        }
+
+        sendJson(response, 200, { ok: true, brainOutput: brainOutput || undefined, handOutput, checkOutput: checkOutput || undefined });
+      } catch (error) { sendErrorResponse(response, 500, "EXEC_FAILED", error instanceof Error ? error.message : "執行失敗"); }
       return;
     }
 

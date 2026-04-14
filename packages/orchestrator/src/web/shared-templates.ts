@@ -178,6 +178,7 @@ export function renderHeader(active: NavActive, subtitle = ""): string {
   <div class="max-w-7xl mx-auto px-6 pb-3">
     <nav class="flex flex-wrap gap-2">
       <a href="/library" class="${active === "dashboard" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">腦手資料庫</a>
+      <a href="/quickrun" class="${active === "demo" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">快速執行</a>
       <a href="/workflows" class="${active === "workflows" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">工作流</a>
       <a href="/brands" class="${active === "database" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">品牌管理</a>
     </nav>
