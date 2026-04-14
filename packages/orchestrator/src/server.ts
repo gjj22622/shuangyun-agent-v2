@@ -34,11 +34,16 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
 function esc(s: unknown): string { return escapeHtml(s); }
 
 /* ─── Library Page ─── */
+const SHUANGYUN_BRAIN_IDS = new Set(["jacky.brain.commander","jacky.brain.control","jacky.brain.question","sy.brain.decide","tbsa.brain.decide","tbsa.brain.plan","compliance-check","brand-voice","schedule-query"]);
+function isShuangyunBrain(skillId: string): boolean { return SHUANGYUN_BRAIN_IDS.has(skillId) || skillId.startsWith("jacky") || skillId.startsWith("tbsa") || skillId.startsWith("sy.brain"); }
+
 function renderLibraryPage(skills: Array<{ skillId: string; name: string; kind: string; category: string; description: string }>): string {
-  const brains = skills.filter(s => s.kind === "sub_agent");
+  const allBrains = skills.filter(s => s.kind === "sub_agent");
+  const syBrains = allBrains.filter(s => isShuangyunBrain(s.skillId));
+  const brandBrains = allBrains.filter(s => !isShuangyunBrain(s.skillId));
   const hands = skills.filter(s => s.kind !== "sub_agent");
-  const card = (s: typeof skills[0], icon: string) =>
-    `<div class="surface-2 rounded-xl p-4 hover:shadow-lg transition group">
+  const card = (s: typeof skills[0], icon: string, color: string) =>
+    `<div class="surface-2 rounded-xl p-4 hover:shadow-lg transition group border-l-4 border-${color}">
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2"><span class="text-xl">${icon}</span><span class="font-bold text-sm text-primary">${esc(s.name)}</span></div>
         <div class="hidden group-hover:flex gap-1">
@@ -51,13 +56,15 @@ function renderLibraryPage(skills: Array<{ skillId: string; name: string; kind: 
     </div>`;
   const body = `
   <div class="flex items-center justify-between mb-6">
-    <div><h2 class="text-2xl font-bold text-primary">腦手資料庫</h2><p class="text-xs text-muted mt-1">${brains.length} 個腦 · ${hands.length} 個手</p></div>
+    <div><h2 class="text-2xl font-bold text-primary">腦手資料庫</h2><p class="text-xs text-muted mt-1">${syBrains.length} 双云腦 · ${brandBrains.length} 品牌腦 · ${hands.length} 手</p></div>
     <button class="btn-primary px-5 py-2.5 rounded-lg text-sm font-bold" onclick="document.getElementById('upload-modal').classList.remove('hidden')">+ 上傳 Skill</button>
   </div>
-  <h3 class="text-sm font-bold text-primary uppercase tracking-wider mb-3">🧠 腦（${brains.length}）</h3>
-  <div class="grid grid-cols-3 gap-4 mb-8">${brains.map(s => card(s, "🧠")).join("") || '<div class="col-span-3 text-center text-muted py-4">無腦</div>'}</div>
-  <h3 class="text-sm font-bold text-primary uppercase tracking-wider mb-3">✋ 手（${hands.length}）</h3>
-  <div class="grid grid-cols-3 gap-4">${hands.map(s => card(s, "✋")).join("") || '<div class="col-span-3 text-center text-muted py-4">無手</div>'}</div>
+  <h3 class="text-sm font-bold uppercase tracking-wider mb-3"><span class="text-sky-600">🧠 双云腦（${syBrains.length}）</span><span class="text-xs text-muted ml-2">双云團隊的策略/品管/提問腦</span></h3>
+  <div class="grid grid-cols-3 gap-4 mb-8">${syBrains.map(s => card(s, "🧠", "sky-400")).join("") || '<div class="col-span-3 text-center text-muted py-4">無双云腦</div>'}</div>
+  <h3 class="text-sm font-bold uppercase tracking-wider mb-3"><span class="text-amber-600">🏷️ 品牌腦（${brandBrains.length}）</span><span class="text-xs text-muted ml-2">品牌負責人上傳的品牌專屬腦</span></h3>
+  <div class="grid grid-cols-3 gap-4 mb-8">${brandBrains.map(s => card(s, "🏷️", "amber-400")).join("") || '<div class="col-span-3 text-center text-muted py-4">尚無品牌腦 — 品牌負責人可上傳品牌策略文件</div>'}</div>
+  <h3 class="text-sm font-bold uppercase tracking-wider mb-3"><span class="text-emerald-600">✋ 手（${hands.length}）</span><span class="text-xs text-muted ml-2">執行具體行銷任務</span></h3>
+  <div class="grid grid-cols-3 gap-4">${hands.map(s => card(s, "✋", "emerald-400")).join("") || '<div class="col-span-3 text-center text-muted py-4">無手</div>'}</div>
   <div id="upload-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick="if(event.target===this)this.classList.add('hidden')">
     <div class="surface-2 rounded-2xl p-6 w-full max-w-lg">
       <h3 class="text-lg font-bold text-primary mb-3">上傳 Skill</h3>
@@ -194,9 +201,11 @@ function renderWorkflowBuilder(
   skills: Array<{ skillId: string; name: string; kind: string }>,
   clients: Array<{ clientId: string; name: string }>
 ): string {
-  const brainSkills = skills.filter(s => s.kind === "sub_agent");
+  const syBrains = skills.filter(s => s.kind === "sub_agent" && isShuangyunBrain(s.skillId));
+  const brandBrainsList = skills.filter(s => s.kind === "sub_agent" && !isShuangyunBrain(s.skillId));
   const handSkills = skills.filter(s => s.kind !== "sub_agent");
-  const brainItems = brainSkills.map(s => `<div class="node-item surface-1 rounded-lg p-2 mb-1 cursor-pointer text-xs hover:border-sky-400 border border-transparent transition" onclick="addNode('brain','${esc(s.skillId)}','🧠 ${esc(s.name)}')">🧠 ${esc(s.name)}</div>`).join("");
+  const syBrainItems = syBrains.map(s => `<div class="node-item surface-1 rounded-lg p-2 mb-1 cursor-pointer text-xs hover:border-sky-400 border border-transparent transition" onclick="addNode('brain','${esc(s.skillId)}','🧠 ${esc(s.name)}')">🧠 ${esc(s.name)}</div>`).join("");
+  const brandBrainItems = brandBrainsList.map(s => `<div class="node-item surface-1 rounded-lg p-2 mb-1 cursor-pointer text-xs hover:border-amber-400 border border-transparent transition" onclick="addNode('brain','${esc(s.skillId)}','🏷️ ${esc(s.name)}')">🏷️ ${esc(s.name)}</div>`).join("");
   const handItems = handSkills.map(s => `<div class="node-item surface-1 rounded-lg p-2 mb-1 cursor-pointer text-xs hover:border-emerald-400 border border-transparent transition" onclick="addNode('skill','${esc(s.skillId)}','✋ ${esc(s.name)}')">✋ ${esc(s.name)}</div>`).join("");
   const clientOpts = clients.map(c => `<option value="${esc(c.clientId)}">${esc(c.name)}</option>`).join("");
 
@@ -213,8 +222,10 @@ function renderWorkflowBuilder(
   <div class="wf-layout rounded-2xl overflow-hidden surface-2">
     <div class="wf-panel">
       <div class="text-xs font-bold text-primary uppercase mb-2">節點庫</div>
-      <div class="text-[10px] text-muted uppercase mb-1">腦 <span class="text-emerald-600">按需調用</span></div>
-      ${brainItems || '<div class="text-[10px] text-muted">無腦 Skill</div>'}
+      <div class="text-[10px] text-sky-600 font-semibold mb-1">双云腦</div>
+      ${syBrainItems || '<div class="text-[10px] text-muted">無</div>'}
+      <div class="text-[10px] text-amber-600 font-semibold mb-1 mt-2">品牌腦</div>
+      ${brandBrainItems || '<div class="text-[10px] text-muted">無</div>'}
       <div class="text-[10px] text-muted uppercase mb-1 mt-3">手 <span class="text-amber-600">~$0.005</span></div>
       ${handItems || '<div class="text-[10px] text-muted">無手 Skill</div>'}
     </div>
@@ -422,8 +433,11 @@ export function startStatusServer(host: string, port: number, repositories: Repo
     // ── 快速執行頁 ──
     if (url.pathname === "/quickrun") {
       const allSkills = repositories.skills.list();
-      const brainCheckboxes = allSkills.filter(s => s.kind === "sub_agent").map(s =>
+      const syBrainCbs = allSkills.filter(s => s.kind === "sub_agent" && isShuangyunBrain(s.skillId)).map(s =>
         `<label class="flex items-center gap-2 surface-1 rounded-lg px-3 py-2 text-xs cursor-pointer hover:border-sky-400 border border-transparent transition"><input type="checkbox" class="brain-cb rounded" value="${esc(s.skillId)}" /><span>🧠 ${esc(s.name)}</span></label>`
+      ).join("");
+      const brandBrainCbs = allSkills.filter(s => s.kind === "sub_agent" && !isShuangyunBrain(s.skillId)).map(s =>
+        `<label class="flex items-center gap-2 surface-1 rounded-lg px-3 py-2 text-xs cursor-pointer hover:border-amber-400 border border-transparent transition"><input type="checkbox" class="brain-cb rounded" value="${esc(s.skillId)}" /><span>🏷️ ${esc(s.name)}</span></label>`
       ).join("");
       const handCheckboxes = allSkills.filter(s => s.kind !== "sub_agent").map(s =>
         `<label class="flex items-center gap-2 surface-1 rounded-lg px-3 py-2 text-xs cursor-pointer hover:border-emerald-400 border border-transparent transition"><input type="checkbox" class="hand-cb rounded" value="${esc(s.skillId)}" /><span>✋ ${esc(s.name)}</span></label>`
@@ -443,7 +457,10 @@ export function startStatusServer(host: string, port: number, repositories: Repo
           </div>
           <div>
             <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">🧠 腦（最多 3 個，腦之間會討論後給指令）</label>
-            <div class="grid grid-cols-2 gap-2 mt-1" id="brain-list">${brainCheckboxes || '<span class="text-[10px] text-muted col-span-2">無腦 Skill</span>'}</div>
+            <div class="text-[10px] text-sky-600 font-semibold mt-2 mb-1">双云腦</div>
+            <div class="grid grid-cols-2 gap-2">${syBrainCbs || '<span class="text-[10px] text-muted col-span-2">無</span>'}</div>
+            <div class="text-[10px] text-amber-600 font-semibold mt-3 mb-1">品牌腦</div>
+            <div class="grid grid-cols-2 gap-2">${brandBrainCbs || '<span class="text-[10px] text-muted col-span-2">尚無品牌腦</span>'}</div>
             <p class="text-[10px] text-muted mt-1" id="brain-count">已選 0/3</p>
           </div>
           <div>
