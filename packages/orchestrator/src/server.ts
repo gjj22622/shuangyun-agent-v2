@@ -210,7 +210,7 @@ function renderWorkflowBuilder(
   const clientOpts = clients.map(c => `<option value="${esc(c.clientId)}">${esc(c.name)}</option>`).join("");
 
   const body = `
-  <style>.wf-layout{display:grid;grid-template-columns:200px 1fr 240px;gap:0;height:calc(100vh - 140px)}.wf-panel{overflow-y:auto;border-right:1px solid #e2e8f0;padding:12px}.wf-panel-r{overflow-y:auto;border-left:1px solid #e2e8f0;padding:12px}.dark .wf-panel,.dark .wf-panel-r{border-color:rgba(255,255,255,.08)}.wf-canvas{background:#f8fafc;position:relative;overflow:auto;min-height:100%}.dark .wf-canvas{background:#0f172a}.wf-node{position:absolute;min-width:150px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:move;border:2px solid;user-select:none}.wf-node.brain{background:#e0f2fe;border-color:#0ea5e9;color:#0c4a6e}.wf-node.skill{background:#ecfdf5;border-color:#10b981;color:#064e3b}.wf-node.selected{box-shadow:0 0 0 3px rgba(14,165,233,.4)}</style>
+  <style>.wf-layout{display:grid;grid-template-columns:200px 1fr 240px;gap:0;height:calc(100vh - 140px)}.wf-panel{overflow-y:auto;border-right:1px solid #e2e8f0;padding:12px}.wf-panel-r{overflow-y:auto;border-left:1px solid #e2e8f0;padding:12px}.dark .wf-panel,.dark .wf-panel-r{border-color:rgba(255,255,255,.08)}.wf-canvas{background:#f8fafc;position:relative;overflow:auto;min-height:100%}.dark .wf-canvas{background:#0f172a}.wf-node{position:absolute;min-width:150px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:move;border:2px solid;user-select:none}.wf-node.brain{background:#e0f2fe;border-color:#0ea5e9;color:#0c4a6e}.wf-node.skill{background:#ecfdf5;border-color:#10b981;color:#064e3b}.wf-node.selected{box-shadow:0 0 0 3px rgba(14,165,233,.4)}.wf-node.linking{box-shadow:0 0 0 3px rgba(245,158,11,.6);animation:pulse-link 1s infinite}.wf-link-btn{position:absolute;right:-12px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:bold;border:2px solid #fff;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}.wf-node:hover .wf-link-btn{opacity:1}.wf-node-label{cursor:move;display:block}@keyframes pulse-link{0%,100%{box-shadow:0 0 0 3px rgba(245,158,11,.6)}50%{box-shadow:0 0 0 6px rgba(245,158,11,.3)}}</style>
   <div class="flex items-center justify-between mb-3">
     <div class="flex items-center gap-3"><a href="/workflows" class="text-xs text-muted hover:text-primary">&larr; 返回</a>
     <input id="wf-name" type="text" value="${esc(wfName)}" placeholder="工作流名稱" class="input-field px-3 py-1.5 rounded-lg text-sm font-bold w-64" /></div>
@@ -231,6 +231,7 @@ function renderWorkflowBuilder(
     </div>
     <div class="wf-canvas" id="canvas">
       <svg id="edges-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></svg>
+      <div id="link-hint" class="hidden" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#fff;padding:6px 16px;border-radius:8px;font-size:11px;font-weight:bold;z-index:10">點擊目標節點完成連線（點空白處取消）</div>
     </div>
     <div class="wf-panel-r" id="config-panel">
       <div class="text-xs font-bold text-primary uppercase mb-2">設定</div>
@@ -269,12 +270,19 @@ function renderWorkflowBuilder(
     canvas.querySelectorAll(".wf-node").forEach(e=>e.remove());
     nodes.forEach(n=>{
       const d=document.createElement("div");
-      d.className="wf-node "+(n.type==="brain"?"brain":"skill")+(selectedId===n.nodeId?" selected":"");
+      d.className="wf-node "+(n.type==="brain"?"brain":"skill")+(selectedId===n.nodeId?" selected":"")+(edgeFrom===n.nodeId?" linking":"");
       d.style.left=n.position.x+"px";d.style.top=n.position.y+"px";
-      d.textContent=n.label;d.dataset.id=n.nodeId;
-      d.onmousedown=startDrag;d.onclick=()=>selectNode(n.nodeId);
+      d.dataset.id=n.nodeId;
+      d.innerHTML='<span class="wf-node-label">'+n.label+'</span><button class="wf-link-btn" title="拖出連線">→</button>';
+      d.querySelector(".wf-node-label").onmousedown=function(e){startDrag(e,n.nodeId)};
+      d.querySelector(".wf-link-btn").onclick=function(e){e.stopPropagation();startLink(n.nodeId)};
+      d.onclick=function(e){
+        if(edgeFrom&&edgeFrom!==n.nodeId){finishLink(n.nodeId);return}
+        selectNode(n.nodeId);
+      };
       canvas.appendChild(d);
     });renderEdges();
+    if(edgeFrom){canvas.style.cursor="crosshair";document.getElementById("link-hint").classList.remove("hidden")}else{canvas.style.cursor="default";document.getElementById("link-hint").classList.add("hidden")}
   }
   function renderEdges(){
     edgesSvg.innerHTML="";
@@ -291,9 +299,9 @@ function renderWorkflowBuilder(
       edgesSvg.appendChild(path);
     });
   }
-  let dragId=null,dragOff={x:0,y:0};
-  function startDrag(e){
-    dragId=e.target.dataset.id;
+  let dragId=null;
+  function startDrag(e,nodeId){
+    dragId=nodeId;
     e.stopPropagation();
   }
   canvas.onmousemove=e=>{
@@ -304,17 +312,22 @@ function renderWorkflowBuilder(
     renderNodes();
   };
   canvas.onmouseup=()=>{dragId=null};
-  // 連線：shift+click 起點，再 shift+click 終點
+
+  // 連線模式
   let edgeFrom=null;
-  canvas.onclick=e=>{
-    if(!e.shiftKey){edgeFrom=null;if(!e.target.closest(".wf-node"))selectNode(null);return}
-    const nd=e.target.closest(".wf-node");if(!nd)return;
-    if(!edgeFrom){edgeFrom=nd.dataset.id;nd.style.outline="3px solid #f59e0b";return}
-    const to=nd.dataset.id;
-    if(to!==edgeFrom&&!edges.some(ed=>ed.from===edgeFrom&&ed.to===to)){
-      edges.push({edgeId:"e"+Date.now(),from:edgeFrom,to});
+  function startLink(nodeId){
+    if(edgeFrom===nodeId){edgeFrom=null;renderNodes();return} // 取消
+    edgeFrom=nodeId;renderNodes();
+  }
+  function finishLink(toId){
+    if(edgeFrom&&toId!==edgeFrom&&!edges.some(ed=>ed.from===edgeFrom&&ed.to===toId)){
+      edges.push({edgeId:"e"+Date.now(),from:edgeFrom,to:toId});
     }
     edgeFrom=null;renderNodes();
+  }
+  // 點空白處取消連線模式
+  canvas.onclick=e=>{
+    if(!e.target.closest(".wf-node")){edgeFrom=null;selectNode(null);renderNodes()}
   };
   function selectNode(id){
     selectedId=id;renderNodes();
