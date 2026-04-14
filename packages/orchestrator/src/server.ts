@@ -60,8 +60,18 @@ function renderLibraryPage(skills: Array<{ skillId: string; name: string; kind: 
   <div class="grid grid-cols-3 gap-4">${hands.map(s => card(s, "✋")).join("") || '<div class="col-span-3 text-center text-muted py-4">無手</div>'}</div>
   <div id="upload-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick="if(event.target===this)this.classList.add('hidden')">
     <div class="surface-2 rounded-2xl p-6 w-full max-w-lg">
-      <h3 class="text-lg font-bold text-primary mb-3">上傳 Skill (.md)</h3>
-      <textarea id="skill-content" class="input-field w-full rounded-lg p-3 text-xs" rows="12" placeholder="貼上 SKILL.md 內容..."></textarea>
+      <h3 class="text-lg font-bold text-primary mb-3">上傳 Skill</h3>
+      <div class="flex gap-2 mb-3">
+        <button class="flex-1 py-2 rounded-lg text-xs font-bold border-2 border-sky-500 bg-sky-50 dark:bg-sky-900/20 text-sky-700" id="tab-file" onclick="switchTab('file')">📁 上傳檔案（.md / .skill）</button>
+        <button class="flex-1 py-2 rounded-lg text-xs font-bold border-2 border-transparent bg-slate-100 dark:bg-slate-800 text-secondary" id="tab-paste" onclick="switchTab('paste')">📋 貼上內容</button>
+      </div>
+      <div id="panel-file">
+        <input type="file" id="skill-file" accept=".md,.skill" class="input-field w-full rounded-lg px-3 py-2 text-xs" />
+        <p class="text-[10px] text-muted mt-1">支援 .md 和 .skill 檔案，系統會自動解析 frontmatter</p>
+      </div>
+      <div id="panel-paste" class="hidden">
+        <textarea id="skill-content" class="input-field w-full rounded-lg p-3 text-xs" rows="10" placeholder="貼上 SKILL.md 內容..."></textarea>
+      </div>
       <div class="flex justify-end gap-2 mt-3">
         <button class="surface-1 px-4 py-2 rounded-lg text-xs font-semibold" onclick="this.closest('#upload-modal').classList.add('hidden')">取消</button>
         <button class="btn-primary px-4 py-2 rounded-lg text-xs font-bold" onclick="uploadSkill()">上傳</button>
@@ -70,7 +80,33 @@ function renderLibraryPage(skills: Array<{ skillId: string; name: string; kind: 
     </div>
   </div>
   <script>
-    async function uploadSkill(){const c=document.getElementById("skill-content").value;const r=document.getElementById("upload-result");try{const res=await fetch("/api/library/upload",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({content:c})});if(!res.ok)throw new Error("上傳失敗");r.className="text-xs mt-2 text-emerald-600";r.textContent="上傳成功！";setTimeout(()=>location.reload(),1000)}catch(e){r.className="text-xs mt-2 text-red-600";r.textContent=e.message}r.classList.remove("hidden")}
+    function switchTab(t){
+      document.getElementById("panel-file").classList.toggle("hidden",t!=="file");
+      document.getElementById("panel-paste").classList.toggle("hidden",t!=="paste");
+      document.getElementById("tab-file").className="flex-1 py-2 rounded-lg text-xs font-bold border-2 "+(t==="file"?"border-sky-500 bg-sky-50 dark:bg-sky-900/20 text-sky-700":"border-transparent bg-slate-100 dark:bg-slate-800 text-secondary");
+      document.getElementById("tab-paste").className="flex-1 py-2 rounded-lg text-xs font-bold border-2 "+(t==="paste"?"border-sky-500 bg-sky-50 dark:bg-sky-900/20 text-sky-700":"border-transparent bg-slate-100 dark:bg-slate-800 text-secondary");
+    }
+    async function uploadSkill(){
+      const r=document.getElementById("upload-result");
+      let content="";
+      // 優先讀檔案
+      const fileInput=document.getElementById("skill-file");
+      if(fileInput.files&&fileInput.files.length>0){
+        content=await fileInput.files[0].text();
+      }else{
+        content=document.getElementById("skill-content").value;
+      }
+      if(!content.trim()){r.className="text-xs mt-2 text-red-600";r.textContent="請選擇檔案或貼上內容";r.classList.remove("hidden");return}
+      try{
+        // .skill 檔案是 zip，但如果是文字就直接上傳
+        const res=await fetch("/api/library/upload",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({content})});
+        const d=await res.json();
+        if(!res.ok)throw new Error(d?.error?.message||"上傳失敗");
+        r.className="text-xs mt-2 text-emerald-600";r.textContent="上傳成功！("+d.skillId+")";
+        setTimeout(()=>location.reload(),1000);
+      }catch(e){r.className="text-xs mt-2 text-red-600";r.textContent=e.message}
+      r.classList.remove("hidden");
+    }
     async function deleteSkill(id){if(!confirm("確定刪除？"))return;await fetch("/api/library/"+id,{method:"DELETE"});location.reload()}
   </script>`;
   return renderPageShell({ title: "腦手資料庫 · V2", active: "dashboard", subtitle: "腦手資料庫", body });
@@ -386,15 +422,19 @@ export function startStatusServer(host: string, port: number, repositories: Repo
     // ── 快速執行頁 ──
     if (url.pathname === "/quickrun") {
       const allSkills = repositories.skills.list();
-      const brains = allSkills.filter(s => s.kind === "sub_agent").map(s => `<option value="${esc(s.skillId)}">${esc(s.name)}</option>`).join("");
-      const handsList = allSkills.filter(s => s.kind !== "sub_agent").map(s => `<option value="${esc(s.skillId)}">${esc(s.name)}</option>`).join("");
+      const brainCheckboxes = allSkills.filter(s => s.kind === "sub_agent").map(s =>
+        `<label class="flex items-center gap-2 surface-1 rounded-lg px-3 py-2 text-xs cursor-pointer hover:border-sky-400 border border-transparent transition"><input type="checkbox" class="brain-cb rounded" value="${esc(s.skillId)}" /><span>🧠 ${esc(s.name)}</span></label>`
+      ).join("");
+      const handCheckboxes = allSkills.filter(s => s.kind !== "sub_agent").map(s =>
+        `<label class="flex items-center gap-2 surface-1 rounded-lg px-3 py-2 text-xs cursor-pointer hover:border-emerald-400 border border-transparent transition"><input type="checkbox" class="hand-cb rounded" value="${esc(s.skillId)}" /><span>✋ ${esc(s.name)}</span></label>`
+      ).join("");
       const clients = repositories.clients.list().map(c => `<option value="${esc(c.clientId)}">${esc(c.name)}</option>`).join("");
       const body = `
-      <div class="max-w-2xl mx-auto">
+      <div class="max-w-3xl mx-auto">
         <div class="text-center mb-6">
           <div class="text-4xl mb-2">⚡</div>
           <h2 class="text-2xl font-bold text-primary">快速執行</h2>
-          <p class="text-xs text-muted mt-1">選腦 + 選手 + 任務 → 一鍵產出（適合一次性任務）</p>
+          <p class="text-xs text-muted mt-1">選腦（最多3）+ 選手（不限）+ 任務 → 一鍵產出</p>
         </div>
         <div class="surface-2 rounded-2xl p-6 space-y-4">
           <div>
@@ -402,13 +442,14 @@ export function startStatusServer(host: string, port: number, repositories: Repo
             <select id="qr-client" class="input-field w-full rounded-lg px-3 py-2.5 text-sm"><option value="">不指定品牌</option>${clients}</select>
           </div>
           <div>
-            <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">🧠 腦（策略指導，可選）</label>
-            <select id="qr-brain" class="input-field w-full rounded-lg px-3 py-2.5 text-sm"><option value="">不使用腦</option>${brains}</select>
-            <p class="text-[10px] text-muted mt-1">腦會根據品牌知識給出策略指令，引導手的產出方向</p>
+            <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">🧠 腦（最多 3 個，腦之間會討論後給指令）</label>
+            <div class="grid grid-cols-2 gap-2 mt-1" id="brain-list">${brainCheckboxes || '<span class="text-[10px] text-muted col-span-2">無腦 Skill</span>'}</div>
+            <p class="text-[10px] text-muted mt-1" id="brain-count">已選 0/3</p>
           </div>
           <div>
-            <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">✋ 手（執行 Skill）</label>
-            <select id="qr-hand" class="input-field w-full rounded-lg px-3 py-2.5 text-sm">${handsList}</select>
+            <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">✋ 手（可多選，依序執行）</label>
+            <div class="grid grid-cols-2 gap-2 mt-1" id="hand-list">${handCheckboxes || '<span class="text-[10px] text-muted col-span-2">無手 Skill</span>'}</div>
+            <p class="text-[10px] text-muted mt-1" id="hand-count">已選 0</p>
           </div>
           <div>
             <label class="block text-xs text-secondary mb-1.5 uppercase tracking-wider font-semibold">任務描述</label>
@@ -421,41 +462,74 @@ export function startStatusServer(host: string, port: number, repositories: Repo
           <button id="qr-btn" class="btn-primary w-full py-3 rounded-lg text-sm font-bold" onclick="quickRun()">⚡ 執行</button>
         </div>
         <div id="qr-result" class="hidden mt-6">
-          <h3 class="text-sm font-bold text-primary uppercase tracking-wider mb-3">產出結果</h3>
-          <div id="qr-brain-output" class="hidden surface-1 rounded-xl p-4 mb-3">
-            <div class="text-xs font-bold text-sky-600 mb-2">🧠 腦指令</div>
-            <div id="qr-brain-text" class="text-xs text-secondary whitespace-pre-wrap"></div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-primary uppercase tracking-wider">產出結果</h3>
+            <button class="surface-1 px-4 py-2 rounded-lg text-xs font-semibold hover:text-primary" onclick="saveAsWorkflow()">💾 儲存為工作流</button>
           </div>
-          <div class="surface-2 rounded-xl p-4 mb-3">
-            <div class="text-xs font-bold text-emerald-600 mb-2">✋ 手產出</div>
-            <div id="qr-hand-text" class="text-xs text-secondary whitespace-pre-wrap leading-relaxed"></div>
-          </div>
-          <div id="qr-check-output" class="hidden surface-1 rounded-xl p-4">
-            <div class="text-xs font-bold text-amber-600 mb-2">🧠 腦審核</div>
-            <div id="qr-check-text" class="text-xs text-secondary whitespace-pre-wrap"></div>
-          </div>
+          <div id="qr-steps"></div>
         </div>
       </div>
       <script>
-        document.getElementById("qr-brain").onchange=document.getElementById("qr-check").onchange=function(){
-          const hasBrain=!!document.getElementById("qr-brain").value;
+        // 腦最多3個限制
+        document.querySelectorAll(".brain-cb").forEach(cb=>{
+          cb.onchange=()=>{
+            const checked=document.querySelectorAll(".brain-cb:checked");
+            if(checked.length>3){cb.checked=false;return}
+            document.getElementById("brain-count").textContent="已選 "+checked.length+"/3";
+            updateCost();
+          };
+        });
+        document.querySelectorAll(".hand-cb").forEach(cb=>{
+          cb.onchange=()=>{
+            document.getElementById("hand-count").textContent="已選 "+document.querySelectorAll(".hand-cb:checked").length;
+            updateCost();
+          };
+        });
+        document.getElementById("qr-check").onchange=updateCost;
+        function updateCost(){
+          const nBrain=document.querySelectorAll(".brain-cb:checked").length;
+          const nHand=document.querySelectorAll(".hand-cb:checked").length;
           const hasCheck=document.getElementById("qr-check").checked;
-          let calls=1;if(hasBrain)calls++;if(hasCheck)calls++;
-          document.getElementById("qr-cost").textContent="預估 ~$"+(calls*0.005).toFixed(3)+" ("+calls+" 次 AI)";
-        };
+          const calls=(nBrain>0?1:0)+nHand+(hasCheck?1:0);
+          document.getElementById("qr-cost").textContent="預估 ~$"+(Math.max(1,calls)*0.005).toFixed(3)+" ("+Math.max(1,calls)+" 次 AI)";
+        }
+
+        let lastResult=null;
         async function quickRun(){
+          const brainIds=[...document.querySelectorAll(".brain-cb:checked")].map(c=>c.value);
+          const handIds=[...document.querySelectorAll(".hand-cb:checked")].map(c=>c.value);
+          const task=document.getElementById("qr-task").value;
+          if(handIds.length===0||!task){alert("至少選一個手 Skill 並填寫任務");return}
           const btn=document.getElementById("qr-btn");
           btn.disabled=true;btn.textContent="執行中...";
-          const body={clientId:document.getElementById("qr-client").value,brainId:document.getElementById("qr-brain").value,handId:document.getElementById("qr-hand").value,task:document.getElementById("qr-task").value,enableCheck:document.getElementById("qr-check").checked};
           try{
-            const res=await fetch("/api/quickrun",{method:"POST",headers:{"content-type":"application/json","x-confirm-cost":"true"},body:JSON.stringify(body)});
+            const res=await fetch("/api/quickrun",{method:"POST",headers:{"content-type":"application/json","x-confirm-cost":"true"},body:JSON.stringify({clientId:document.getElementById("qr-client").value,brainIds,handIds,task,enableCheck:document.getElementById("qr-check").checked})});
             const d=await res.json();if(!res.ok)throw new Error(d?.error?.message||"執行失敗");
+            lastResult={brainIds,handIds,task,clientId:document.getElementById("qr-client").value};
             document.getElementById("qr-result").classList.remove("hidden");
-            if(d.brainOutput){document.getElementById("qr-brain-output").classList.remove("hidden");document.getElementById("qr-brain-text").textContent=d.brainOutput}
-            document.getElementById("qr-hand-text").textContent=d.handOutput||"（無產出）";
-            if(d.checkOutput){document.getElementById("qr-check-output").classList.remove("hidden");document.getElementById("qr-check-text").textContent=d.checkOutput}
+            const stepsDiv=document.getElementById("qr-steps");
+            stepsDiv.innerHTML="";
+            if(d.steps){d.steps.forEach(s=>{
+              const icon=s.type==="brain"?"🧠":s.type==="check"?"🔍":"✋";
+              const color=s.type==="brain"?"text-sky-600":s.type==="check"?"text-amber-600":"text-emerald-600";
+              stepsDiv.innerHTML+='<div class="surface-1 rounded-xl p-4 mb-3"><div class="flex justify-between mb-2"><span class="text-xs font-bold '+color+'">'+icon+" "+s.label+'</span><span class="text-[10px] text-muted">~$'+s.cost.toFixed(4)+'</span></div><div class="text-xs text-secondary whitespace-pre-wrap leading-relaxed">'+s.content.slice(0,1000)+'</div></div>';
+            })}
           }catch(e){alert(e.message)}
           finally{btn.disabled=false;btn.textContent="⚡ 執行"}
+        }
+
+        async function saveAsWorkflow(){
+          if(!lastResult)return;
+          const name=prompt("工作流名稱：","快速執行-"+new Date().toISOString().slice(0,10));
+          if(!name)return;
+          const nodes=[];const edges=[];let y=40;
+          lastResult.brainIds.forEach((id,i)=>{nodes.push({nodeId:"b"+i,type:"brain",skillId:id,label:"腦"+i,position:{x:80,y:y+i*70},config:{}})});
+          lastResult.handIds.forEach((id,i)=>{nodes.push({nodeId:"h"+i,type:"skill",skillId:id,label:"手"+i,position:{x:300,y:y+i*70},config:{}})});
+          // 腦→手連線
+          lastResult.brainIds.forEach((_,bi)=>{lastResult.handIds.forEach((_,hi)=>{edges.push({edgeId:"e"+bi+"_"+hi,from:"b"+bi,to:"h"+hi})})});
+          const res=await fetch("/api/workflows",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name,clientId:lastResult.clientId,nodes,edges})});
+          const d=await res.json();
+          if(d.ok){alert("已儲存為工作流！");location.href="/workflows/"+d.workflowId}else{alert("儲存失敗")}
         }
       </script>`;
       sendHtml(response, renderPageShell({ title: "快速執行 · V2", active: "demo", subtitle: "快速執行", body }));
@@ -557,66 +631,88 @@ export function startStatusServer(host: string, port: number, repositories: Repo
       return;
     }
 
-    // Quick Run API
+    // Quick Run API — 多腦（最多3）+ 多手（不限）
     if (url.pathname === "/api/quickrun" && request.method === "POST") {
       if (!requireOperator(request, response) || !requireCostConfirmation(request, response)) return;
       try {
         const body = (await readJsonBody(request)) as Record<string, unknown>;
-        const brainId = typeof body.brainId === "string" ? body.brainId : "";
-        const handId = typeof body.handId === "string" ? body.handId : "";
+        const brainIds = (Array.isArray(body.brainIds) ? body.brainIds : []).filter((v): v is string => typeof v === "string").slice(0, 3);
+        const handIds = (Array.isArray(body.handIds) ? body.handIds : []).filter((v): v is string => typeof v === "string");
         const task = typeof body.task === "string" ? body.task : "";
         const clientId = typeof body.clientId === "string" ? body.clientId : "";
         const enableCheck = body.enableCheck === true;
 
-        if (!handId || !task) { sendErrorResponse(response, 400, "MISSING", "需要選擇手 Skill 和填寫任務"); return; }
-
-        const hand = repositories.skills.findById(handId);
-        if (!hand) { sendErrorResponse(response, 404, "NOT_FOUND", "手 Skill 不存在"); return; }
+        if (handIds.length === 0 || !task) { sendErrorResponse(response, 400, "MISSING", "至少選一個手 Skill 並填寫任務"); return; }
 
         const { callClaudeWithUsageCheap } = await import("./integrations/anthropic.js");
-        let brainOutput = "";
-        let handOutput = "";
-        let checkOutput = "";
+        const steps: Array<{ type: string; label: string; content: string; cost: number }> = [];
+        let clientContext = "";
+        if (clientId) {
+          const client = repositories.clients.getById(clientId);
+          if (client) clientContext = `\n品牌：${client.name}（${client.industry}）`;
+        }
 
-        // Step 1: 腦指令（可選）
-        if (brainId) {
-          const brain = repositories.skills.findById(brainId);
-          if (brain) {
+        // Step 1: 多腦討論 → 合成指令
+        let brainDirective = "";
+        if (brainIds.length > 0) {
+          const brainOutputs: string[] = [];
+          for (const bid of brainIds) {
+            const brain = repositories.skills.findById(bid);
+            if (!brain) continue;
             const brainPrompt = brain.blocks[0]?.systemPrompt ?? "";
-            let clientContext = "";
-            if (clientId) {
-              const client = repositories.clients.getById(clientId);
-              if (client) clientContext = `\n品牌：${client.name}（${client.industry}）`;
-            }
-            const brainResult = await callClaudeWithUsageCheap({
+            const prevContext = brainOutputs.length > 0 ? `\n\n【其他腦的意見】\n${brainOutputs.join("\n---\n")}` : "";
+            const result = await callClaudeWithUsageCheap({
               system: brainPrompt + clientContext,
-              user: `任務：${task}\n\n請給出策略指令和方向建議，供執行手參考。簡潔扼要。`
+              user: `任務：${task}${prevContext}\n\n請從你的專業角度給出策略指令和方向建議。簡潔扼要，150 字以內。`
             });
-            brainOutput = brainResult.text;
+            brainOutputs.push(`【${brain.name}】${result.text}`);
+            const cost = (result.inputTokens / 1e6) * 0.25 + (result.outputTokens / 1e6) * 1.25;
+            steps.push({ type: "brain", label: brain.name, content: result.text, cost });
+          }
+
+          // 多腦合成指令
+          if (brainOutputs.length > 1) {
+            const synthResult = await callClaudeWithUsageCheap({
+              system: "你是腦會議主持人。根據多個腦的意見，合成一份精簡的執行指令。只輸出指令，不要解釋。",
+              user: brainOutputs.join("\n\n") + "\n\n請合成為一份執行指令。"
+            });
+            brainDirective = synthResult.text;
+            const cost = (synthResult.inputTokens / 1e6) * 0.25 + (synthResult.outputTokens / 1e6) * 1.25;
+            steps.push({ type: "brain", label: "腦會議結論", content: synthResult.text, cost });
+          } else {
+            brainDirective = brainOutputs[0]?.replace(/^【[^】]+】/, "") ?? "";
           }
         }
 
-        // Step 2: 手執行
-        const handPrompt = hand.blocks[0]?.systemPrompt ?? `你是 ${hand.name}`;
-        const handUser = brainOutput
-          ? `【腦指令】\n${brainOutput}\n\n【任務】${task}\n\n請根據腦指令執行任務，產出完整內容。`
-          : `【任務】${task}\n\n請執行任務，產出完整內容。`;
-        const handResult = await callClaudeWithUsageCheap({ system: handPrompt, user: handUser });
-        handOutput = handResult.text;
+        // Step 2: 多手依序執行
+        let prevHandOutput = "";
+        for (const hid of handIds) {
+          const hand = repositories.skills.findById(hid);
+          if (!hand) continue;
+          const handPrompt = hand.blocks[0]?.systemPrompt ?? `你是 ${hand.name}`;
+          const userParts = [];
+          if (brainDirective) userParts.push(`【腦指令】\n${brainDirective}`);
+          if (prevHandOutput) userParts.push(`【上一步產出】\n${prevHandOutput.slice(0, 500)}`);
+          userParts.push(`【任務】${task}`);
+          userParts.push("請根據以上資訊執行任務，產出完整繁體中文內容。");
+          const result = await callClaudeWithUsageCheap({ system: handPrompt, user: userParts.join("\n\n") });
+          prevHandOutput = result.text;
+          const cost = (result.inputTokens / 1e6) * 0.25 + (result.outputTokens / 1e6) * 1.25;
+          steps.push({ type: "hand", label: hand.name, content: result.text, cost });
+        }
 
         // Step 3: 腦 check（可選）
-        if (enableCheck && brainId) {
-          const brain = repositories.skills.findById(brainId);
-          if (brain) {
-            const checkResult = await callClaudeWithUsageCheap({
-              system: "你是品質審核腦。檢查以下產出是否符合策略指令和品牌約束。給出：通過/需修改 + 具體修改建議。",
-              user: `【腦指令】\n${brainOutput}\n\n【手產出】\n${handOutput}\n\n請審核。`
-            });
-            checkOutput = checkResult.text;
-          }
+        if (enableCheck && brainIds.length > 0) {
+          const allHandOutputs = steps.filter(s => s.type === "hand").map(s => s.content).join("\n---\n");
+          const checkResult = await callClaudeWithUsageCheap({
+            system: "你是品質審核腦。檢查產出是否符合策略指令和品牌約束。給出：通過/需修改 + 具體修改建議。",
+            user: `【腦指令】\n${brainDirective}\n\n【手產出】\n${allHandOutputs}\n\n請審核。`
+          });
+          const cost = (checkResult.inputTokens / 1e6) * 0.25 + (checkResult.outputTokens / 1e6) * 1.25;
+          steps.push({ type: "check", label: "腦審核", content: checkResult.text, cost });
         }
 
-        sendJson(response, 200, { ok: true, brainOutput: brainOutput || undefined, handOutput, checkOutput: checkOutput || undefined });
+        sendJson(response, 200, { ok: true, steps });
       } catch (error) { sendErrorResponse(response, 500, "EXEC_FAILED", error instanceof Error ? error.message : "執行失敗"); }
       return;
     }
