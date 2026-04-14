@@ -224,7 +224,7 @@ export function buildSkillManifestFromSkillDoc(
 
   return {
     skillId,
-    name: String(parsed.frontmatter.name ?? skillId),
+    name: parsed.body.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? String(parsed.frontmatter.name ?? skillId),
     kind,
     category: inferCategory(parsed),
     version,
