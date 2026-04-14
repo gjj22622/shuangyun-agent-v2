@@ -165,7 +165,7 @@ function renderWorkflowBuilder(
   const clientOpts = clients.map(c => `<option value="${esc(c.clientId)}">${esc(c.name)}</option>`).join("");
 
   const body = `
-  <style>.wf-layout{display:grid;grid-template-columns:200px 1fr 240px;gap:0;height:calc(100vh - 140px)}.wf-panel{overflow-y:auto;border-right:1px solid #e2e8f0;padding:12px}.wf-panel-r{overflow-y:auto;border-left:1px solid #e2e8f0;padding:12px}.dark .wf-panel,.dark .wf-panel-r{border-color:rgba(255,255,255,.08)}.wf-canvas{background:#f8fafc;position:relative;overflow:auto}.dark .wf-canvas{background:#0f172a}.wf-node{position:absolute;min-width:150px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:move;border:2px solid;user-select:none}.wf-node.brain{background:#e0f2fe;border-color:#0ea5e9;color:#0c4a6e}.wf-node.skill{background:#ecfdf5;border-color:#10b981;color:#064e3b}.wf-node.selected{box-shadow:0 0 0 3px rgba(14,165,233,.4)}</style>
+  <style>.wf-layout{display:grid;grid-template-columns:200px 1fr 240px;gap:0;height:calc(100vh - 140px)}.wf-panel{overflow-y:auto;border-right:1px solid #e2e8f0;padding:12px}.wf-panel-r{overflow-y:auto;border-left:1px solid #e2e8f0;padding:12px}.dark .wf-panel,.dark .wf-panel-r{border-color:rgba(255,255,255,.08)}.wf-canvas{background:#f8fafc;position:relative;overflow:auto;min-height:100%}.dark .wf-canvas{background:#0f172a}.wf-node{position:absolute;min-width:150px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:move;border:2px solid;user-select:none}.wf-node.brain{background:#e0f2fe;border-color:#0ea5e9;color:#0c4a6e}.wf-node.skill{background:#ecfdf5;border-color:#10b981;color:#064e3b}.wf-node.selected{box-shadow:0 0 0 3px rgba(14,165,233,.4)}</style>
   <div class="flex items-center justify-between mb-3">
     <div class="flex items-center gap-3"><a href="/workflows" class="text-xs text-muted hover:text-primary">&larr; 返回</a>
     <input id="wf-name" type="text" value="${esc(wfName)}" placeholder="工作流名稱" class="input-field px-3 py-1.5 rounded-lg text-sm font-bold w-64" /></div>
@@ -213,7 +213,9 @@ function renderWorkflowBuilder(
 
   function addNode(type,skillId,label){
     const id="n"+(nextNum++);
-    const n={nodeId:id,type,skillId:skillId||undefined,brainConfig:type==="brain"?{brainType:"skill",clientId:"",prompt:""}:undefined,label,position:{x:80+(nodes.length%3)*180,y:60+Math.floor(nodes.length/3)*80},config:{}};
+    const cx=canvas.scrollLeft+80+(nodes.length%3)*180;
+    const cy=canvas.scrollTop+40+Math.floor(nodes.length/3)*80;
+    const n={nodeId:id,type,skillId:skillId||undefined,brainConfig:type==="brain"?{brainType:"skill",clientId:"",prompt:""}:undefined,label,position:{x:cx,y:cy},config:{}};
     nodes.push(n);renderNodes();selectNode(id);
   }
   function renderNodes(){
@@ -244,14 +246,14 @@ function renderWorkflowBuilder(
   }
   let dragId=null,dragOff={x:0,y:0};
   function startDrag(e){
-    dragId=e.target.dataset.id;const n=nodes.find(x=>x.nodeId===dragId);
-    if(n){dragOff={x:e.clientX-n.position.x,y:e.clientY-n.position.y}}
+    dragId=e.target.dataset.id;
     e.stopPropagation();
   }
   canvas.onmousemove=e=>{
     if(!dragId)return;const n=nodes.find(x=>x.nodeId===dragId);if(!n)return;
     const r=canvas.getBoundingClientRect();
-    n.position.x=Math.max(0,e.clientX-dragOff.x);n.position.y=Math.max(0,e.clientY-dragOff.y);
+    n.position.x=Math.max(0,e.clientX-r.left+canvas.scrollLeft);
+    n.position.y=Math.max(0,e.clientY-r.top+canvas.scrollTop);
     renderNodes();
   };
   canvas.onmouseup=()=>{dragId=null};
