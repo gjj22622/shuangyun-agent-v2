@@ -356,8 +356,12 @@ function renderWorkflowBuilder(
       const d=await res.json();if(!res.ok)throw new Error(d?.error?.message||"失敗");
       const div=document.getElementById("run-steps");
       div.innerHTML=d.steps?.map(s=>{
-        const icon=s.type==="brain"?"🧠":"✋",cost=s.costEstimatedUsd>0?" · $"+s.costEstimatedUsd.toFixed(4):" · 免費";
-        return '<div class="surface-1 rounded-lg p-3 mb-2"><div class="flex justify-between"><span class="font-bold text-xs">'+icon+" "+s.nodeId+cost+'</span><span class="text-xs '+(s.error?"text-red-600":"text-emerald-600")+'">'+(s.error?"失敗":"完成")+'</span></div><div class="text-xs text-secondary whitespace-pre-wrap mt-1">'+(s.content||s.error||"").slice(0,300)+"</div></div>"
+        const icons={"brain-discuss":"💬","brain-decision":"📋","hand":"✋","brain-review":"🔍"};
+        const colors={"brain-discuss":"text-sky-600","brain-decision":"text-amber-600","hand":"text-emerald-600","brain-review":"text-violet-600"};
+        const icon=icons[s.type]||"⚡";
+        const color=colors[s.type]||"text-primary";
+        const cost=s.cost>0?" · $"+s.cost.toFixed(4):"";
+        return '<div class="surface-1 rounded-lg p-4 mb-2"><div class="flex justify-between mb-1"><span class="font-bold text-xs '+color+'">'+icon+" "+s.label+cost+'</span><span class="text-xs '+(s.error?"text-red-600":"text-emerald-600")+'">'+(s.error?"失敗":"完成")+'</span></div><div class="text-xs text-secondary whitespace-pre-wrap leading-relaxed">'+(s.content||s.error||"").slice(0,500)+"</div></div>"
       }).join("")||"";
       document.getElementById("run-modal").classList.remove("hidden");
     }catch(e){alert(e.message)}
@@ -520,7 +524,7 @@ export function startStatusServer(host: string, port: number, repositories: Repo
           const nBrain=document.querySelectorAll(".brain-cb:checked").length;
           const nHand=document.querySelectorAll(".hand-cb:checked").length;
           const hasCheck=document.getElementById("qr-check").checked;
-          const calls=(nBrain>0?1:0)+nHand+(hasCheck?1:0);
+          const calls=(nBrain>1?nBrain+1:nBrain)+nHand+(hasCheck?1:0);
           document.getElementById("qr-cost").textContent="預估 ~$"+(Math.max(1,calls)*0.005).toFixed(3)+" ("+Math.max(1,calls)+" 次 AI)";
         }
 
