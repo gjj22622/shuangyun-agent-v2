@@ -578,13 +578,51 @@ export function startStatusServer(host: string, port: number, repositories: Repo
         const body = (await readJsonBody(request)) as Record<string, unknown>;
         const content = typeof body.content === "string" ? body.content : "";
         if (!content.trim()) { sendErrorResponse(response, 400, "EMPTY", "內容不能為空"); return; }
-        const nameMatch = content.match(/^name:\s*(.+)$/m);
-        const skillId = nameMatch ? nameMatch[1]!.trim() : randomUUID();
-        const layerMatch = content.match(/^layer:\s*(.+)$/m);
-        const kind = layerMatch && layerMatch[1]!.trim() === "brain" ? "sub_agent" as const : "workflow" as const;
-        const descMatch = content.match(/^description:\s*\|?\s*\n?([\s\S]*?)(?=\n---|\n#|$)/m);
-        repositories.skills.save({ skillId, name: skillId, kind, category: "content_writing", version: "1.0", description: descMatch ? descMatch[1]!.trim().slice(0, 200) : content.slice(0, 200), inputSchema: {}, outputSchema: {}, blocks: [{ blockId: "main", name: skillId, type: "skill", systemPrompt: content }], isShared: true });
-        sendJson(response, 201, { ok: true, skillId });
+
+        // 解析 frontmatter
+        const fm: Record<string, string> = {};
+        const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+        if (fmMatch) {
+          for (const line of fmMatch[1]!.split("\n")) {
+            const idx = line.indexOf(":");
+            if (idx > 0) {
+              const key = line.slice(0, idx).trim();
+              const val = line.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+              if (key && val && !val.includes("\n")) fm[key] = val;
+            }
+          }
+        }
+
+        // 解析 description（可能是多行 | 格式）
+        const descMatch = content.match(/^description:\s*\|?\s*\n([\s\S]*?)(?=\n\w+:|\n---)/m);
+        const description = descMatch ? descMatch[1]!.trim().slice(0, 300) : (fm.description ?? "").slice(0, 300);
+
+        // 解析 body（--- 後的內容）
+        const bodyContent = content.replace(/^---[\s\S]*?---\s*\n?/, "").trim();
+        // 找第一個 # 標題作為顯示名稱
+        const titleMatch = bodyContent.match(/^#\s+(.+)$/m);
+
+        const skillId = fm["new-name"] || fm.name || randomUUID();
+        const displayName = titleMatch ? titleMatch[1]!.trim() : (fm.name || skillId);
+        const layer = fm.layer ?? "hand";
+        const kind = layer === "brain" ? "sub_agent" as const : "workflow" as const;
+        const domain = fm.domain ?? "";
+        const version = fm.version ?? "1.0";
+        const category = domain === "tbsa" ? "marketing_plan" as const : domain === "sy" ? "brand_voice" as const : "content_writing" as const;
+
+        repositories.skills.save({
+          skillId,
+          name: displayName,
+          kind,
+          category,
+          version,
+          description: description || bodyContent.slice(0, 200),
+          inputSchema: {},
+          outputSchema: {},
+          blocks: [{ blockId: "main", name: displayName, type: "skill", systemPrompt: content }],
+          isShared: true
+        });
+        sendJson(response, 201, { ok: true, skillId, name: displayName, kind, layer });
       } catch (error) { sendErrorResponse(response, 400, "UPLOAD_FAILED", error instanceof Error ? error.message : "上傳失敗"); }
       return;
     }
