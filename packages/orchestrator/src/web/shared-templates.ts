@@ -177,14 +177,9 @@ export function renderHeader(active: NavActive, subtitle = ""): string {
   </div>
   <div class="max-w-7xl mx-auto px-6 pb-3">
     <nav class="flex flex-wrap gap-2">
-      <a href="/" class="${active === "dashboard" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">Dashboard</a>
-      <a href="/demo" class="${active === "demo" || active === "demo-compare" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">任務中心</a>
-      <a href="/database" class="${active === "database" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">品牌資料庫</a>
-      <a href="/onboarding" class="${active === "onboarding" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">新增客戶</a>
-      <a href="/members" class="${active === "members" || active === "member-detail" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">團隊儀表板</a>
-      <a href="/leaderboard" class="${active === "leaderboard" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">排行榜</a>
-      <a href="/marketplace" class="${active === "marketplace" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">Skill 市集</a>
+      <a href="/library" class="${active === "dashboard" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">腦手資料庫</a>
       <a href="/workflows" class="${active === "workflows" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">工作流</a>
+      <a href="/brands" class="${active === "database" ? "nav-active" : "nav-item"} px-4 py-1.5 rounded-lg text-sm font-semibold transition">品牌管理</a>
     </nav>
   </div>
 </header>`;
