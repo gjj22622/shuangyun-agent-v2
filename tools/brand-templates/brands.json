@@ -1,0 +1,62 @@
+[
+  {
+    "templateId": "yumeika_clinic",
+    "label": "御美佳醫美診所（醫美保健）",
+    "payload": {
+      "brandName": "御美佳醫美診所",
+      "industry": "醫療美容",
+      "primaryGoal": "三個月內把官方 LINE 好友從 1,200 人成長到 3,000 人，並提升熟客回診率",
+      "targetAudience": "30-50 歲、雙北地區、注重抗老與保養的女性上班族與輕熟齡媽媽",
+      "keyOffer": "皮膚健康諮詢 + 微整療程套組（電音波、皮秒、注射），主打『先諮詢再治療』的安心流程",
+      "toneOfVoice": "專業、溫柔、有醫師背書感，避免過度推銷與絕對化字眼",
+      "bannedTopics": "療效保證、未經 TFDA 核可的藥物、競品比較、政治敏感、誇大前後對比",
+      "preferredChannels": ["Instagram", "Facebook", "LINE", "部落格"],
+      "contentCadence": "每週 3 篇 IG 貼文 + 1 篇部落格知識文 + 每天 1 則 LINE 短訊息",
+      "campaignWindow": "2026-04-15 to 2026-07-15",
+      "currentPainPoint": "舊客回診靠人工提醒、文案合規常出包、客服回覆速度慢、內容沒系統",
+      "successMetric": "LINE 好友 +1,800、官網諮詢表單月均 50 件、IG 自然觸及月增 30%",
+      "ownerName": "張育琴",
+      "ownerEmail": "yumeika.owner@example.tw"
+    }
+  },
+  {
+    "templateId": "lumencoach_b2b_saas",
+    "label": "Lumen Coach（B2B SaaS 教練平台）",
+    "payload": {
+      "brandName": "Lumen Coach",
+      "industry": "B2B SaaS / 企業教育訓練",
+      "primaryGoal": "在六個月內把 MQL（marketing qualified lead）從每月 40 件提升到 120 件，開拓中型企業 HR 主管市場",
+      "targetAudience": "員工 100-500 人的科技/製造業 HR 主管、L&D 負責人、想導入 1-on-1 教練文化的決策者",
+      "keyOffer": "一站式企業教練媒合 SaaS：認證教練池、課程排程、效益追蹤儀表板，支援 SSO 與 HRIS 整合",
+      "toneOfVoice": "專業、有數據感、像顧問而非業務，文章帶 framework 與案例",
+      "bannedTopics": "醫療診斷暗示、療癒導向、心理疾病標籤、保證 ROI 的承諾",
+      "preferredChannels": ["LinkedIn", "EDM", "部落格", "YouTube"],
+      "contentCadence": "每週 1 篇深度部落格 + 2 則 LinkedIn 短文 + 每月 1 集 podcast",
+      "campaignWindow": "2026-04-15 to 2026-10-15",
+      "currentPainPoint": "內容產出慢、缺少統一品牌語調、業務跟行銷的訊息斷層、轉換率追蹤不完整",
+      "successMetric": "MQL 月均 120 件、部落格自然流量月成長 25%、LinkedIn 互動率 > 3%",
+      "ownerName": "Vivian Chen",
+      "ownerEmail": "vivian@lumencoach.example"
+    }
+  },
+  {
+    "templateId": "qingmu_local_eatery",
+    "label": "青木食堂（在地餐飲）",
+    "payload": {
+      "brandName": "青木食堂",
+      "industry": "餐飲 / 在地小食",
+      "primaryGoal": "新分店開幕後三個月內達成穩定來客（午市 80% 滿座、晚市 60% 滿座）並建立『常來吃的鄰居感』",
+      "targetAudience": "店面方圓 2 公里內的辦公室上班族、附近社區家庭、想找平價但有質感午餐的學生與年輕族群",
+      "keyOffer": "每日手寫菜單 + 在地小農食材，午餐定食 NT$180-220、晚餐家常套餐 NT$280-380，有 LINE 預約",
+      "toneOfVoice": "親切、生活感、像鄰居店長在跟你聊天，可適度用台語混搭",
+      "bannedTopics": "無國界料理競品比較、營養誇大、政治話題、外送平台抱怨",
+      "preferredChannels": ["Instagram", "Facebook", "LINE", "Google Business"],
+      "contentCadence": "每天 1 則 IG 限時動態 + 每週 4 則 IG 貼文 + 每月 2 篇 FB 長文",
+      "campaignWindow": "2026-04-15 to 2026-07-15",
+      "currentPainPoint": "貼文都老闆自己拍隨手寫、沒有風格一致性、節氣與菜色跟不上、Google 評論偶爾被放戰",
+      "successMetric": "午市座位率 ≥ 80%、IG 追蹤 +1,500、Google 評論 4.6 星以上、LINE 預約率月增 50%",
+      "ownerName": "陳青木",
+      "ownerEmail": "owner@qingmu-eatery.example"
+    }
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/shared-types"
+    },
+    {
+      "path": "./packages/brain"
+    },
+    {
+      "path": "./packages/hands"
+    },
+    {
+      "path": "./packages/orchestrator"
+    },
+    {
+      "path": "./packages/web"
+    }
+  ]
+}

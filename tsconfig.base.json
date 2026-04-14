@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "ES2024"
+    ],
+    "types": [
+      "node"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "composite": true,
+    "paths": {
+      "@shuangyun/shared-types": [
+        "packages/shared-types/src/index.ts"
+      ],
+      "@shuangyun/brain": [
+        "packages/brain/src/index.ts"
+      ],
+      "@shuangyun/hands": [
+        "packages/hands/src/index.ts"
+      ]
+    }
+  }
+}

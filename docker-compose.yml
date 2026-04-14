@@ -1,0 +1,20 @@
+services:
+  shuangyun-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shuangyun-agent-platform:local
+    container_name: shuangyun-agent
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8000"
+      DATABASE_PATH: /app/data/shuangyun-agent.db
+      TRACE_EXPORT_DIR: /app/data/traces
+    volumes:
+      - ./data:/app/data
+      - "C:/Users/gjj22/OneDrive/双云AI轉型教育訓練/06_Skills/双云技能包:/app/skills:ro"
+    restart: unless-stopped

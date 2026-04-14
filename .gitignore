@@ -1,0 +1,56 @@
+# ===== Python =====
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ===== Node / TypeScript =====
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.npm/
+.pnpm-store/
+
+# ===== 環境變數與密鑰 =====
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets/
+
+# ===== IDE / 編輯器 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Microsoft/
+
+# ===== Streamlit =====
+.streamlit/secrets.toml
+
+# ===== 日誌與暫存 =====
+logs/
+*.log
+tmp/
+temp/
+
+# ===== Claude Code 本地設定 =====
+.claude/settings.local.json
+
+# ===== OpenSpec 暫存 =====
+.openspec/cache/
+.codex/.sandbox/
+data/
+
+TOKEN_LIST.md

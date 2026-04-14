@@ -1,0 +1,43 @@
+{
+  "name": "shuangyun-agent-platform",
+  "version": "0.2.0",
+  "description": "Two-clouds AI marketing department MVP workspace",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @shuangyun/shared-types && npm run build --workspace @shuangyun/brain && npm run build --workspace @shuangyun/hands && npm run build --workspace @shuangyun/orchestrator && npm run build --workspace @shuangyun/web",
+    "typecheck": "npm run build",
+    "lint": "node tools/check-boundaries.mjs",
+    "preflight": "node tools/preflight-check.mjs",
+    "test": "npm run build && node tools/run-tests.mjs",
+    "dev": "npm run build && node packages/orchestrator/dist/index.js serve",
+    "serve": "node packages/orchestrator/dist/index.js serve",
+    "start": "npm run serve",
+    "migrate": "npm run build && node packages/orchestrator/dist/index.js migrate",
+    "seed": "npm run build && node packages/orchestrator/dist/index.js seed",
+    "status": "npm run build && node packages/orchestrator/dist/index.js status",
+    "demo-task": "npm run build && node packages/orchestrator/dist/index.js demo-task",
+    "onboard-sample": "npm run build && node packages/orchestrator/dist/index.js onboard-sample",
+    "verify-form-integration": "npm run build && node packages/orchestrator/dist/index.js verify-form-integration",
+    "poll-feedback": "npm run build && node packages/orchestrator/dist/index.js poll-feedback",
+    "preimport-jacky-skills": "npm run build --workspace @shuangyun/orchestrator",
+    "import-jacky-skills": "node tools/jacky-skills-loader/import-jacky-skills.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "zod": "^4.1.5"
+  }
+}
